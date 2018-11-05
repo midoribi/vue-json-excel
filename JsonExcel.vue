@@ -26,10 +26,10 @@ export default {
     },
     // fields inside the Json Object that you want to export
     // if no given, all the properties in the Json are exported
-    // fields: {
-      // type: Object,
-      // required: false
-    // },
+    fields: {
+      type: Object,
+      required: false
+    },
     // this prop is used to fix the problem with other components that use the
     // variable fields, like vee-validate. exportFields works exactly like fields
     exportFields: {
@@ -71,7 +71,7 @@ export default {
     },
 
     downloadFields() {
-      // if (this.fields !== undefined) return this.fields;
+      if (this.fields !== undefined) return this.fields;
 
       if (this.exportFields !== undefined) return this.exportFields;
     }
@@ -165,7 +165,7 @@ export default {
       }
 
       //WorkSheet Name
-      xlsTemp.replace("${worksheet}", this.name)
+      xlsTemp = xlsTemp.replace("${worksheet}", this.name)
 
       return xlsTemp.replace("${table}", xlsData);
     },
