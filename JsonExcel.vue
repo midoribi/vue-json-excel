@@ -65,6 +65,10 @@ export default {
     worksheet: {
       type: String, 
       default: "Sheet1"
+    },
+    addstyle: {
+      type: String, 
+      default: ""
     }
   },
   computed: {
@@ -127,7 +131,7 @@ export default {
 		*/
     jsonToXLS(data) {
       let xlsTemp =
-        '<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40"><head><meta name=ProgId content=Excel.Sheet> <meta name=Generator content="Microsoft Excel 11"><meta http-equiv="Content-Type" content="text/html; charset=UTF-8"><!--[if gte mso 9]><xml><x:ExcelWorkbook><x:ExcelWorksheets><x:ExcelWorksheet><x:Name>${worksheet}</x:Name><x:WorksheetOptions><x:DisplayGridlines/></x:WorksheetOptions></x:ExcelWorksheet></x:ExcelWorksheets></x:ExcelWorkbook></xml><![endif]--></head><body><table>${table}</table></body></html>';
+        '<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40"><head><meta name=ProgId content=Excel.Sheet> <meta name=Generator content="Microsoft Excel 11"><meta http-equiv="Content-Type" content="text/html; charset=UTF-8"><!--[if gte mso 9]><xml><x:ExcelWorkbook><x:ExcelWorksheets><x:ExcelWorksheet><x:Name>${worksheet}</x:Name><x:WorksheetOptions><x:DisplayGridlines/></x:WorksheetOptions></x:ExcelWorksheet></x:ExcelWorksheets></x:ExcelWorkbook></xml><![endif]--><style>${addstyle}</style></head><body><table>${table}</table></body></html>';
       let xlsData = "<thead>";
       const colspan = Object.keys(data[0]).length;
 
@@ -151,8 +155,19 @@ export default {
       xlsData += "<tbody>";
       data.map(function(item, index) {
         xlsData += "<tr>";
-        for (let key in item) {
-          xlsData += "<td>" + item[key] + "</td>";
+        for (var key in item) {
+          var value = typeof item[key]   !== "object" ? item[key] : item[key].value;
+          var attributes_string = typeof item[key]   !== "object" ? "" : (function(){
+              let obj = item[key].attribute
+              var str = ' ';
+              for (var p in obj) {
+                  if (obj.hasOwnProperty(p)) {
+                      str += p + '="' + obj[p] + '" ';
+                  }
+              }
+              return str;
+          })();
+          xlsData += "<td"+attributes_string+">" + value + "</td>";
         }
         xlsData += "</tr>";
       });
@@ -169,7 +184,7 @@ export default {
       }
 
       //WorkSheet Name
-      return xlsTemp.replace("${table}", xlsData).replace("${worksheet}", this.worksheet);
+      return xlsTemp.replace("${table}", xlsData).replace("${worksheet}", this.worksheet).replace("${addstyle}", this.addstyle);
     },
     /*
 		jsonToCSV
@@ -192,8 +207,8 @@ export default {
       //Data
       data.map(function(item) {
         for (let key in item) {
-//          let escapedCSV = '=\"' + item[key] + '\"'; // cast Numbers to string
-          let escapedCSV = item[key] + ""; // cast Numbers to string
+          let escapedCSV = typeof item[key]   !== "object" ? item[key] : item[key].value;
+          escapedCSV = escapedCSV + ""; // cast Numbers to string
           if (escapedCSV.match(/[,"\n]/)) {
             escapedCSV = '"' + escapedCSV.replace(/\"/g, '""') + '"';
           }
@@ -269,7 +284,13 @@ export default {
       else
         value = this.parseValue(item[field]);
       
-      if( key.hasOwnProperty('callback'))
+      if( key.hasOwnProperty('callback_attribute'))
+        value = {
+          value: this.getValueFromCallback(value, key.callback),
+          attribute: this.getAttributeFromCallback(value, key.callback_attribute)
+        }
+
+      else if( key.hasOwnProperty('callback'))
         value = this.getValueFromCallback(value, key.callback);
       
       return value;
@@ -290,10 +311,21 @@ export default {
       const value = callback(item);
       return this.parseValue(value);
     },
+    getAttributeFromCallback(item, callback){
+      if(typeof callback !== "function")
+        return this.defaultValue
+      const attributes = callback(item);
+      return this.parseAttribute(attributes);
+    },
     parseValue(value){
       return value || value === 0 
           ? value
           : this.defaultValue;
+    },
+    parseAttribute(attributes){
+      return attributes || attributes === 0 
+          ? attributes
+          : null;
     },
     base64ToBlob(data, mime) {
       let base64 = window.btoa(window.unescape(encodeURIComponent(data)));
